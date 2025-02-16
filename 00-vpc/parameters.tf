@@ -1,0 +1,25 @@
+# we need to store the VPC ID, public subnet ID's in to ssm Parameter so that other resources like (security group) will use these values from ssm parameter store #
+
+resource "aws_ssm_parameter" "vpc_id" {
+  name  = "/${var.project_name}/${var.environment}/vpc_id"
+  type  = "String"
+  value = module.vpc.vpc_id
+}
+
+resource "aws_ssm_parameter" "public_subnet_ids" {
+  name  = "/${var.project_name}/${var.environment}/public_subnet_ids"
+  type  = "String"
+  value = join("," , module.vpc.public_subnet_ids)
+}
+
+resource "aws_ssm_parameter" "private_subnet_ids" {
+  name  = "/${var.project_name}/${var.environment}/private_subnet_ids"
+  type  = "String"
+  value = join("," , module.vpc.private_subnet_ids)
+}
+
+resource "aws_ssm_parameter" "database_subnet_ids" {
+  name  = "/${var.project_name}/${var.environment}/database_subnet_ids"
+  type  = "String"
+  value = join("," , module.vpc.database_subnet_ids)
+}
