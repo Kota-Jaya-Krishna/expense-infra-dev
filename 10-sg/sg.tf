@@ -62,6 +62,17 @@ module "app_alb_sg" {
 }
 
 
+module "web_alb_sg" {
+    source = "git::https://github.com/Kota-Jaya-Krishna/terraform-aws-security-group.git?ref=main"
+    project_name = var.project_name
+    environment = var.environment
+    sg_name = "web_alb_sg"
+    sg_description = "Created for Frontend ALB instance in expense dev"
+    vpc_id = data.aws_ssm_parameter.vpc_id.value
+    common_tags = var.common_tags
+}
+
+
 # APP ALB accepting traffic from bastion
 resource "aws_security_group_rule" "app_alb_bastion" {
   type              = "ingress"
@@ -149,4 +160,93 @@ resource "aws_security_group_rule" "mysql_vpn" {
   protocol          = "tcp"
   source_security_group_id = module.vpn_sg.sg_id
   security_group_id = module.mysql_sg.sg_id
+}
+
+# Backend servers should accept connection from VPN #
+
+resource "aws_security_group_rule" "backend_vpn" {
+  type              = "ingress"
+  from_port         = 22
+  to_port           = 22
+  protocol          = "tcp"
+  source_security_group_id = module.vpn_sg.sg_id
+  security_group_id = module.backend_sg.sg_id
+}
+
+# Backend servers should accept connection from VPN, developers used to perform http test from VPN to backend, then we need to allo this PORT#
+
+resource "aws_security_group_rule" "backend_vpn_http" {
+  type              = "ingress"
+  from_port         = 8080
+  to_port           = 8080
+  protocol          = "tcp"
+  source_security_group_id = module.vpn_sg.sg_id
+  security_group_id = module.backend_sg.sg_id
+}
+
+# backend should allow connections form ALB from 8080 #
+
+resource "aws_security_group_rule" "backend_app_alb" {
+  type              = "ingress"
+  from_port         = 8080
+  to_port           = 8080
+  protocol          = "tcp"
+  source_security_group_id = module.app_alb_sg.sg_id
+  security_group_id = module.backend_sg.sg_id
+}
+
+# mysql should accept traffic form backend #
+
+resource "aws_security_group_rule" "mysql_backend" {
+  type              = "ingress"
+  from_port         = 3306
+  to_port           = 3306
+  protocol          = "tcp"
+  source_security_group_id = module.backend_sg.sg_id
+  security_group_id = module.mysql_sg.sg_id
+}
+
+# Web ALB is accepting https traffic from public #
+
+resource "aws_security_group_rule" "web_alb_https" {
+  type              = "ingress"
+  from_port         = 443
+  to_port           = 443
+  protocol          = "tcp"
+  cidr_blocks       = ["0.0.0.0/0"]
+  security_group_id = module.web_alb_sg.sg_id
+}
+
+
+# APP ALB should accept traffic from frontend instances #
+
+resource "aws_security_group_rule" "app_alb_frontend" {
+  type              = "ingress"
+  from_port         = 80
+  to_port           = 80
+  protocol          = "tcp"
+  source_security_group_id = module.frontend_sg.sg_id
+  security_group_id = module.app_alb_sg.sg_id
+}
+
+# frontend should accept traffic from WEB ALB #
+
+resource "aws_security_group_rule" "frontend_web_alb" {
+  type              = "ingress"
+  from_port         = 80
+  to_port           = 80
+  protocol          = "tcp"
+  source_security_group_id = module.web_alb_sg.sg_id
+  security_group_id = module.frontend_sg.sg_id
+}
+
+# frontend should accepting connections from public (to login to server via SSH) this one is for to upload the frontend.sh script from our path to instance during AMI process#
+
+resource "aws_security_group_rule" "frontend_public" {
+  type              = "ingress"
+  from_port         = 22
+  to_port           = 22
+  protocol          = "tcp"
+  cidr_blocks       = ["0.0.0.0/0"]
+  security_group_id = module.frontend_sg.sg_id
 }

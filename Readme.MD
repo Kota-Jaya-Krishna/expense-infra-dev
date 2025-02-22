@@ -11,3 +11,7 @@ while destroying the infra just opposite to the below.
 
 40-rds         [developers can get access to RDS From VPN to verify if data is fine or not]
 50-app-alb
+
+60-backend
+70-acn
+80-web-alb
